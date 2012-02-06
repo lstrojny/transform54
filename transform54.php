@@ -19,7 +19,7 @@ function transform_long_arrays(array $tokens)
     $source = '';
 
     $arrays = 0;
-    $braces = array();
+    $braces = [];
 
     foreach ($tokens as $token) {
         //var_dump($token, $arrays, $braces);
@@ -65,6 +65,42 @@ function transform_long_arrays(array $tokens)
     return $source;
 }
 
+function transform_closures($tokens)
+{
+    $functions = 0;
+    $braces = [];
+
+    $source = '';
+
+    foreach ($tokens as $ptr => $token) {
+        if (is_array($token) && $token[0] == T_FUNCTION) {
+            $isClosure = false;
+            $ptr++;
+            while (true) {
+                if (is_array($tokens[$ptr]) && $tokens[$ptr][0] == T_WHITESPACE) {
+                    $ptr++;
+                } elseif (is_string($tokens[$ptr]) && $tokens[$ptr] == '(') {
+                    $isClosure = true;
+                    break;
+                } else {
+                    break;
+                }
+            }
+            if ($isClosure) {
+                $source .= str_replace('function', 'static function', $token[1]);
+            } else {
+                $source .= $token[1];
+            }
+        } elseif (is_array($token)) {
+            $source .= $token[1];
+        } else {
+            $source .= $token;
+        }
+    }
+
+    return $source;
+}
+
 $args = $_SERVER['argv'];
 
 if (in_array('--help', $args)) {
@@ -98,6 +134,10 @@ if (in_array('--short-arrays', $args)) {
     $transformers[] = 'LS\transform_long_arrays';
 }
 
+if (in_array('--static-closures', $args)) {
+    $transformers[] = 'LS\transform_closures';
+}
+
 $files = new \RegexIterator(
     new \RecursiveIteratorIterator(
         new \RecursiveDirectoryIterator($dir)
@@ -120,6 +160,9 @@ foreach ($files as $file) {
             echo $source . "\n";
         }
         $tempFile = lint($source, $transformer);
+    }
+    if ($dryRun && $verbose) {
+        printf("Result file %s\n", $tempFile);
     }
     if (!$dryRun) {
         rename($tempFile, $file->getPathName());
