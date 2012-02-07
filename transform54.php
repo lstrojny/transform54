@@ -21,18 +21,31 @@ function transform_long_arrays(array $tokens)
     $arrays = 0;
     $braces = [];
 
-    foreach ($tokens as $token) {
+    foreach ($tokens as $ptr => $token) {
         //var_dump($token, $arrays, $braces);
 
         // New array
         if (is_array($token) && $token[0] == T_ARRAY) {
-            $arrays++;
-            $braces[$arrays] = 0;
+            $isTypehint = true;
+            $ptr++;
+            while (true) {
+                if (is_array($tokens[$ptr]) && $tokens[$ptr][0] == T_WHITESPACE) {
+                    $ptr++;
+                } elseif (is_string($tokens[$ptr]) && $tokens[$ptr] == '(') {
+                    $isTypehint = false;
+                    break;
+                } else {
+                    break;
+                }
+            }
 
-        // Ignore typehints
-        } elseif (is_array($token) && $arrays > 0 && $braces[$arrays] === 0 && $token[0] == T_VARIABLE) {
-            $arrays--;
-            $source .= $token[1];
+            if (!$isTypehint) {
+                $arrays++;
+                $braces[$arrays] = 0;
+            } else {
+                $source .= $token[1];
+            }
+
         } elseif (is_string($token)) {
 
             // Opening brace, replace
