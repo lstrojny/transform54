@@ -126,10 +126,14 @@ function transform_closures($tokens)
 
 $args = $_SERVER['argv'];
 
-if (in_array('--help', $args)) {
+if (in_array('--help', $args) || count($args) == 1) {
     $help = <<<'EOS'
-%s: Simplify PHP 5.4 migration
+%1$s: Simplify PHP 5.4 migration
 
+Usage:
+%1$s [options] <directory>
+
+Options:
 --help              Show this help
 --short-arrays      Rewrite array() to []
 --static-closures   Add "static" in front of every closure
@@ -139,7 +143,7 @@ if (in_array('--help', $args)) {
 --extensions        File extensions to look for (comma-separated). Default: php
 
 EOS;
-    printf($help, basename($_SERVER['argv'][0]));
+    printf($help, basename($args[0]));
     exit(1);
 }
 
@@ -160,6 +164,11 @@ if (in_array('--short-arrays', $args)) {
 
 if (in_array('--static-closures', $args)) {
     $transformers[] = 'LS\transform_closures';
+}
+
+if (empty($transformers)) {
+    printf("%s: No transformers specified\n", basename($args[0]));
+    exit(11);
 }
 
 $regex = '/\.php$/';
