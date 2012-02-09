@@ -22,8 +22,6 @@ function transform_long_arrays(array $tokens)
     $braces = [];
 
     foreach ($tokens as $ptr => $token) {
-        //var_dump($token, $arrays, $braces);
-
         // New array
         if (is_array($token) && $token[0] == T_ARRAY) {
             $isTypehint = true;
@@ -85,10 +83,10 @@ function transform_closures($tokens)
 
     $source = '';
 
-    foreach ($tokens as $ptr => $token) {
+    foreach ($tokens as $p => $token) {
         if (is_array($token) && $token[0] == T_FUNCTION) {
             $isClosure = false;
-            $ptr++;
+            $ptr = $p + 1;
             while (true) {
                 if (is_array($tokens[$ptr]) && $tokens[$ptr][0] == T_WHITESPACE) {
                     $ptr++;
@@ -99,7 +97,19 @@ function transform_closures($tokens)
                     break;
                 }
             }
-            if ($isClosure) {
+            $isStatic = false;
+            $ptr = $p - 1;
+            while (true) {
+                if (is_array($tokens[$ptr]) && $tokens[$ptr][0] == T_WHITESPACE) {
+                    $ptr--;
+                } elseif (is_array($tokens[$ptr]) && $tokens[$ptr][0] == T_STATIC) {
+                    $isStatic = true;
+                    break;
+                } else {
+                    break;
+                }
+            }
+            if ($isClosure && !$isStatic) {
                 $source .= str_replace('function', 'static function', $token[1]);
             } else {
                 $source .= $token[1];
@@ -126,6 +136,7 @@ if (in_array('--help', $args)) {
 --dry-run           Only try, don't rewrite anything
 --verbose           Be more verbose
 --debug             Show extensive debugging information
+--extensions        File extensions to look for (comma-separated). Default: php
 
 EOS;
     printf($help, basename($_SERVER['argv'][0]));
@@ -151,11 +162,18 @@ if (in_array('--static-closures', $args)) {
     $transformers[] = 'LS\transform_closures';
 }
 
+$regex = '/\.php$/';
+if (($pos = array_search('--extensions', $args)) !== false && isset($args[$pos+1])) {
+    $extensions = explode(',', $args[$pos+1]);
+    $extensions = array_map('preg_quote', $extensions);
+    $regex = '/\.' . join($extensions, '|') . '$/';
+}
+
 $files = new \RegexIterator(
     new \RecursiveIteratorIterator(
         new \RecursiveDirectoryIterator($dir)
     ),
-    '/\.php$/'
+    $regex
 );
 
 foreach ($files as $file) {
